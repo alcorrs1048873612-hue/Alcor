@@ -181,12 +181,13 @@ void CTest1View::OnMedianFilter()
 
 
 //=============================================================
-// 线性锐化滤波（拉普拉斯算子）—— 同时输出梯度图像
+// 线性锐化滤波（拉普拉斯算子）—— 同时可视化输出梯度图像
 // 使用拉普拉斯模板：
 //     0  -1   0
 //    -1   4  -1
 //     0  -1   0
 // 锐化结果 = 原图 + 拉普拉斯梯度
+// 先显示梯度图像，再显示锐化结果
 //=============================================================
 void CTest1View::OnLaplacianSharpen()
 {
@@ -268,63 +269,17 @@ void CTest1View::OnLaplacianSharpen()
 		pGradient[j * lWidth + (lWidth - 1)] = 0;
 	}
 
-	// 先弹出一个对话框，把梯度图像用直方图窗口的方式展示出来
-	// 这里我们用MessageBox简单提示，然后把梯度图像显示到主窗口
-	// 为了同时输出梯度图像，我们先把梯度图保存为BMP文件
-	// 保存梯度图像到文件
-	CString strGradFile;
-	strGradFile = _T("LaplacianGradient.bmp");
+	// 先把梯度图像显示到主窗口，让用户看到梯度效果
+	delete[] pImage;
+	pImage = pGradient;
 
-	CFile gradFile;
-	if (gradFile.Open(strGradFile, CFile::modeCreate | CFile::modeWrite))
-	{
-		// 构造BMP文件头
-		BITMAPFILEHEADER bfh;
-		memset(&bfh, 0, sizeof(BITMAPFILEHEADER));
-		bfh.bfType = 0x4D42;
-		bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
-		bfh.bfSize = bfh.bfOffBits + imgSize;
+	Invalidate(TRUE);
+	UpdateWindow(); // 立即刷新，把梯度图像画到屏幕上
 
-		// 构造BMP信息头
-		BITMAPINFOHEADER bih;
-		memset(&bih, 0, sizeof(BITMAPINFOHEADER));
-		bih.biSize = sizeof(BITMAPINFOHEADER);
-		bih.biWidth = lWidth;
-		bih.biHeight = lHeight;
-		bih.biPlanes = 1;
-		bih.biBitCount = 8;
-		bih.biCompression = BI_RGB;
-		bih.biSizeImage = imgSize;
+	// 弹出提示，用户看完梯度图后点确定，再切换到锐化结果
+	AfxMessageBox(_T("当前显示的是拉普拉斯梯度图像，点击确定后显示锐化结果。"));
 
-		// 灰度调色板
-		RGBQUAD palette[256];
-		for (int n = 0; n < 256; n++)
-		{
-			palette[n].rgbBlue = n;
-			palette[n].rgbGreen = n;
-			palette[n].rgbRed = n;
-			palette[n].rgbReserved = 0;
-		}
-
-		gradFile.Write(&bfh, sizeof(BITMAPFILEHEADER));
-		gradFile.Write(&bih, sizeof(BITMAPINFOHEADER));
-		gradFile.Write(palette, 256 * sizeof(RGBQUAD));
-		gradFile.Write(pGradient, imgSize);
-		gradFile.Close();
-
-		CString msg;
-		msg.Format(_T("拉普拉斯梯度图像已保存为：%s"), strGradFile);
-		AfxMessageBox(msg);
-	}
-	else
-	{
-		AfxMessageBox(_T("梯度图像保存失败！"));
-	}
-
-	// 释放梯度图像内存
-	delete[] pGradient;
-
-	// 将锐化结果替换原图，显示锐化后的图像
+	// 把锐化结果替换为当前显示图像
 	delete[] pImage;
 	pImage = pSharpen;
 
@@ -333,13 +288,14 @@ void CTest1View::OnLaplacianSharpen()
 
 
 //=============================================================
-// Sobel算子实现非线性锐化滤波 —— 同时输出梯度图像
+// Sobel算子实现非线性锐化滤波 —— 同时可视化输出梯度图像
 // Sobel水平模板Gx：         Sobel垂直模板Gy：
 //    -1   0   1                -1  -2  -1
 //    -2   0   2                 0   0   0
 //    -1   0   1                 1   2   1
 // 梯度幅值 G = |Gx| + |Gy|
 // 锐化结果 = 原图 + 梯度幅值
+// 先显示梯度图像，再显示锐化结果
 //=============================================================
 void CTest1View::OnSobelSharpen()
 {
@@ -384,7 +340,7 @@ void CTest1View::OnSobelSharpen()
 			int p01 = (int)pImage[(j - 1) * lWidth + i];
 			int p02 = (int)pImage[(j - 1) * lWidth + (i + 1)];
 			int p10 = (int)pImage[j * lWidth + (i - 1)];
-			// int p11 = (int)pImage[j * lWidth + i];  // 中心点，Sobel不用
+			// int p11 = (int)pImage[j * lWidth + i];  // 中心点，Sobel模板系数为0
 			int p12 = (int)pImage[j * lWidth + (i + 1)];
 			int p20 = (int)pImage[(j + 1) * lWidth + (i - 1)];
 			int p21 = (int)pImage[(j + 1) * lWidth + i];
@@ -441,60 +397,17 @@ void CTest1View::OnSobelSharpen()
 		pGradient[j * lWidth + (lWidth - 1)] = 0;
 	}
 
-	// 保存Sobel梯度图像为BMP文件
-	CString strGradFile;
-	strGradFile = _T("SobelGradient.bmp");
+	// 先把梯度图像显示到主窗口，让用户看到Sobel梯度效果
+	delete[] pImage;
+	pImage = pGradient;
 
-	CFile gradFile;
-	if (gradFile.Open(strGradFile, CFile::modeCreate | CFile::modeWrite))
-	{
-		// 构造BMP文件头
-		BITMAPFILEHEADER bfh;
-		memset(&bfh, 0, sizeof(BITMAPFILEHEADER));
-		bfh.bfType = 0x4D42;
-		bfh.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
-		bfh.bfSize = bfh.bfOffBits + imgSize;
+	Invalidate(TRUE);
+	UpdateWindow(); // 立即刷新，把梯度图像画到屏幕上
 
-		// 构造BMP信息头
-		BITMAPINFOHEADER bih;
-		memset(&bih, 0, sizeof(BITMAPINFOHEADER));
-		bih.biSize = sizeof(BITMAPINFOHEADER);
-		bih.biWidth = lWidth;
-		bih.biHeight = lHeight;
-		bih.biPlanes = 1;
-		bih.biBitCount = 8;
-		bih.biCompression = BI_RGB;
-		bih.biSizeImage = imgSize;
+	// 弹出提示，用户看完梯度图后点确定，再切换到锐化结果
+	AfxMessageBox(_T("当前显示的是Sobel梯度图像，点击确定后显示锐化结果。"));
 
-		// 灰度调色板
-		RGBQUAD palette[256];
-		for (int n = 0; n < 256; n++)
-		{
-			palette[n].rgbBlue = n;
-			palette[n].rgbGreen = n;
-			palette[n].rgbRed = n;
-			palette[n].rgbReserved = 0;
-		}
-
-		gradFile.Write(&bfh, sizeof(BITMAPFILEHEADER));
-		gradFile.Write(&bih, sizeof(BITMAPINFOHEADER));
-		gradFile.Write(palette, 256 * sizeof(RGBQUAD));
-		gradFile.Write(pGradient, imgSize);
-		gradFile.Close();
-
-		CString msg;
-		msg.Format(_T("Sobel梯度图像已保存为：%s"), strGradFile);
-		AfxMessageBox(msg);
-	}
-	else
-	{
-		AfxMessageBox(_T("梯度图像保存失败！"));
-	}
-
-	// 释放梯度图内存
-	delete[] pGradient;
-
-	// 将锐化结果替换原图
+	// 把锐化结果替换为当前显示图像
 	delete[] pImage;
 	pImage = pSharpen;
 
